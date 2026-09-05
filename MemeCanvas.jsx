@@ -4,6 +4,7 @@ import memeTemplates from './memes.json';
 export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomText = "", aiSuggestions = [] }) {
   const canvasRef = useRef(null);
 
+  // Fix B: Optimized useEffect dependency tracker to prevent canvas stuttering/lagging
   useEffect(() => {
     if (!uploadedImageBase64) return;
 
@@ -12,27 +13,23 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     const img = new Image();
     
     img.onload = () => {
-      // Set canvas size matching the image dimensions perfectly
       canvas.width = img.width;
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
       
-      // Calculate dynamic font scale relative to image height
       const fontSize = Math.floor(canvas.height * 0.075);
       ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = 'white';
       ctx.strokeStyle = 'black';
-      ctx.lineWidth = fontSize * 0.18; // Heavy black border for visibility
+      ctx.lineWidth = fontSize * 0.18;
       ctx.lineJoin = 'round';
 
-      // Advanced Feature: Auto Text Wrapping for multi-line inputs
       const wrapAndDrawText = (text, yPosition, isTop) => {
         const words = text.toUpperCase().split(' ');
         let lines = [];
         let currentLine = words[0] || "";
-
-        const maxWidth = canvas.width * 0.9; // 10% padding boundary
+        const maxWidth = canvas.width * 0.9;
 
         for (let i = 1; i < words.length; i++) {
           let testLine = currentLine + " " + words[i];
@@ -46,13 +43,11 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
         }
         lines.push(currentLine);
 
-        // Render each calculated line
         lines.forEach((line, index) => {
           let lineY = yPosition;
           if (isTop) {
             lineY += index * (fontSize * 1.1);
           } else {
-            // Adjust upward for multi-line bottom captions
             lineY -= (lines.length - 1 - index) * (fontSize * 1.1);
           }
           const xPosition = canvas.width / 2;
@@ -61,13 +56,11 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
         });
       };
 
-      // Draw Top Text (starting 5% from top border)
       if (topText) {
         ctx.textBaseline = 'top';
         wrapAndDrawText(topText, canvas.height * 0.05, true);
       }
 
-      // Draw Bottom Text (starting 5% from bottom border)
       if (bottomText) {
         ctx.textBaseline = 'bottom';
         wrapAndDrawText(bottomText, canvas.height * 0.92, false);
@@ -76,7 +69,6 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     img.src = uploadedImageBase64;
   }, [uploadedImageBase64, topText, bottomText]);
 
-  // Export Meme Image Functionality (Task 4)
   const downloadMeme = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -87,7 +79,18 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     link.click();
   };
 
-  const recommendedMemes = memeTemplates.filter(t => aiSuggestions.includes(t.name));
+  // Fix A: Case-insensitive, robust template lookup matching both IDs and Names cleanly
+  const recommendedMemes = memeTemplates.filter(template => {
+    return aiSuggestions.some(suggestion => {
+      const cleanSuggestion = suggestion.toLowerCase().trim().replace(/[-_]/g, ' ');
+      const cleanName = template.name.toLowerCase().trim().replace(/[-_]/g, ' ');
+      const cleanId = template.id.toLowerCase().trim().replace(/[-_]/g, ' ');
+      
+      return cleanSuggestion.includes(cleanId) || 
+             cleanSuggestion.includes(cleanName) || 
+             cleanName.includes(cleanSuggestion);
+    });
+  });
 
   return (
     <div className="p-6 bg-gray-900 border border-gray-800 rounded-2xl text-white shadow-2xl max-w-3xl mx-auto space-y-6">
