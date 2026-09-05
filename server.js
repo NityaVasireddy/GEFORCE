@@ -1,167 +1,94 @@
-import { useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, Download, Copy, Check } from "lucide-react";
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
-function MemePreview({ image, caption }) {
-  const canvasRef = useRef(null);
-  const cachedImgRef = useRef(null);
-  const [imageUrl, setImageUrl] = useState("");
-  const [copied, setCopied] = useState(false);
+// Ensure your team installs the correct package via: npm install @google/genai
+const { GoogleGenAI } = require('@google/genai'); 
 
-  useEffect(() => {
-    if (!image) {
-      setImageUrl("");
-      cachedImgRef.current = null;
-      return;
-    }
+const app = express();
 
-    if (typeof image === "string") {
-      setImageUrl(image);
-    } else if (image instanceof File) {
-      const url = URL.createObjectURL(image);
-      setImageUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else if (image.preview || image.url) {
-      setImageUrl(image.preview || image.url);
-    }
-  }, [image]);
+// Enable secure cross-origin requests so your Vercel frontend can talk to it cleanly
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST']
+}));
 
-  // Decode Image
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      cachedImgRef.current = img;
-      renderCanvas();
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
+app.use(express.json({ limit: '50mb' }));
 
-  // Live Redraw when caption changes
-  useEffect(() => {
-    if (cachedImgRef.current) {
-      renderCanvas();
-    }
-  }, [caption]);
+// Initializing the advanced multimodal inference model engine
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY });
 
-  const renderCanvas = () => {
-    const canvas = canvasRef.current;
-    const img = cachedImgRef.current;
-    if (!canvas || !img) return;
+app.post('/api/generate-captions', async (req, res) => {
+  try {
+    const { imageBase64, situation, tone } = req.body;
 
-    const ctx = canvas.getContext("2d");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
+    // Advanced System Directive: Explicitly forces 5 completely separate caption styles
+    const systemPrompt = `
+      You are a professional, world-class AI Meme Engineer and Viral Social Media Copywriter.
+      Analyze the input context carefully (Situation: "${situation || 'Not provided'}").
+      
+      CRITICAL REQUIREMENT: Generate a batch of exactly 5 completely DIFFERENT, DISTINCT, and UNIQUE caption options.
+      - Each option must use entirely unique word choice, length, joke structures, and comedic setups.
+      - Absolutely DO NOT repeat the same phrase, joke, or punchline template across options.
+      - Strictly follow the selected stylistic presentation tone parameter: "${tone || 'Sarcastic'}".
+      
+      Also provide 2-3 accurate matching template suggestions from this list: ["Drake Hotline Bling", "Distracted Boyfriend", "Two Buttons", "Change My Mind", "Expanding Brain"].
 
-    const textToDraw = caption || "POV: YOU THOUGHT TODAY WAS GOING TO BE PRODUCTIVE 💀";
-    const fontSize = Math.floor(canvas.height * 0.075);
-    ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = Math.max(fontSize * 0.18, 4);
-    ctx.lineJoin = "round";
-
-    // Text Wrap
-    const words = textToDraw.toUpperCase().split(" ");
-    let lines = [];
-    let currentLine = words[0] || "";
-    const maxWidth = canvas.width * 0.9;
-
-    for (let i = 1; i < words.length; i++) {
-      let testLine = currentLine + " " + words[i];
-      if (ctx.measureText(testLine).width > maxWidth) {
-        lines.push(currentLine);
-        currentLine = words[i];
-      } else {
-        currentLine = testLine;
+      Your response must be returned in raw, valid JSON formatting ONLY matching this structure block:
+      {
+        "captions": ["Genuinely unique and funny option 1", "Entirely different hilarious option 2", "Distinct option 3", "Clever variation option 4", "Sharp punchline option 5"],
+        "suggested_memes": ["Template Name 1", "Template Name 2"]
       }
-    }
-    lines.push(currentLine);
+    `;
 
-    // Draw at the bottom of the meme
-    lines.forEach((line, index) => {
-      const lineY = canvas.height * 0.92 - (lines.length - 1 - index) * (fontSize * 1.15);
-      ctx.strokeText(line, canvas.width / 2, lineY);
-      ctx.fillText(line, canvas.width / 2, lineY);
-    });
-  };
+    let modelInput = [systemPrompt];
 
-  const handleDownload = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `meme-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
-
-  const handleCopy = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    try {
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    // Decode base64 stream directly into the multimodal model array safely if provided
+    if (imageBase64) {
+      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      modelInput.push({
+        inlineData: {
+          data: cleanBase64,
+          mimeType: "image/jpeg"
+        }
       });
-    } catch (e) {
-      console.error(e);
     }
-  };
 
-  if (!imageUrl) {
-    return (
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-        <h2 className="text-lg font-semibold text-white mb-1">Meme Canvas Engine</h2>
-        <p className="text-sm text-gray-500 mb-4">Upload an image to render your meme</p>
-        <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black">
-          <div className="text-center">
-            <ImageIcon size={45} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-sm text-gray-400">No Image Uploaded Yet</p>
-          </div>
-        </div>
-      </div>
-    );
+    // Call the lightning-fast multimodal intelligence runner
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash', 
+      contents: modelInput,
+    });
+
+    // Clean any accidental markdown wrapper characters coming from raw LLM output text
+    let responseText = response.text.trim();
+    if (responseText.startsWith("```json")) {
+      responseText = responseText.replace(/^```json/, "").replace(/```\$/, "");
+    } else if (responseText.startsWith("```")) {
+      responseText = responseText.replace(/^```/, "").replace(/```$/, "");
+    }
+
+    const parsedMemeData = JSON.parse(responseText.trim());
+    
+    // Return the clean, isolated variety list down to your MemePreview dashboard component
+    res.json(parsedMemeData);
+
+  } catch (error) {
+    console.error("API Gateway Execution Error:", error);
+    res.status(500).json({ 
+      error: "Failed to compile unique batch caption options", 
+      captions: [
+        "When local code env throws a fit right before final submission 💀",
+        "It worked perfectly fine on my machine, I swear",
+        "Me watching the deployment build log line spin indefinitely",
+        "Surviving on pure caffeine and dreams of winning the grand prize",
+        "POV: The automated testing suite grades your repository at 100/100"
+      ],
+      suggested_memes: ["Two Buttons", "Drake Hotline Bling"]
+    });
   }
+});
 
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">🎨 Live Meme Canvas</h2>
-          <p className="text-xs text-gray-500">Auto-wrapped text with bold black stroke outlines</p>
-        </div>
-      </div>
-
-      {/* CANVAS VIEWPORT */}
-      <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-white/10 bg-black/60 p-3 overflow-hidden">
-        <canvas ref={canvasRef} className="max-w-full h-auto rounded-xl shadow-2xl border border-white/10" />
-      </div>
-
-      {/* ACTION BUTTONS (MEMBER 3 DELIVERABLES) */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="flex items-center justify-center gap-2 py-3 px-4 bg-white/10 hover:bg-white/15 text-white font-medium rounded-xl text-sm transition"
-        >
-          {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
-          {copied ? "Copied Meme!" : "Copy to Clipboard"}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleDownload}
-          className="flex items-center justify-center gap-2 py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-red-600/30"
-        >
-          <Download size={16} /> Download PNG
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default MemePreview;
+// Use dynamic environment assignment parameters suited for hosting platforms
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`[GEFORCE Engine] Server active on network port ${PORT}`));
