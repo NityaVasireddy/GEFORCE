@@ -6,6 +6,10 @@ const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
 
+// --------------------------------------------------
+// CORS
+// --------------------------------------------------
+
 app.use(
   cors({
     origin: "*",
@@ -13,28 +17,50 @@ app.use(
   })
 );
 
+// Allow large Base64 images
 app.use(express.json({ limit: "50mb" }));
 
-const apiKey =
-  process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+// --------------------------------------------------
+// GEMINI SETUP
+// --------------------------------------------------
+
+const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
   console.error("ERROR: GEMINI_API_KEY is not configured.");
 }
 
 const ai = new GoogleGenAI({
-  apiKey,
+  apiKey: apiKey,
 });
+
+// --------------------------------------------------
+// HEALTH CHECK
+// --------------------------------------------------
 
 app.get("/", (req, res) => {
   res.json({
-    status: "GEFORCE backend is running",
+    status: "success",
+    message: "GEFORCE AI Meme Backend is running",
   });
 });
 
+// --------------------------------------------------
+// GENERATE MEME CAPTIONS
+// --------------------------------------------------
+
 app.post("/api/generate-captions", async (req, res) => {
   try {
-    const { imageBase64, situation, description, tone } = req.body;
+    const {
+      imageBase64,
+      situation,
+      description,
+      tone,
+    } = req.body;
+
+    // --------------------------------------------------
+    // CHECK IMAGE
+    // --------------------------------------------------
 
     if (!imageBase64) {
       return res.status(400).json({
@@ -42,13 +68,21 @@ app.post("/api/generate-captions", async (req, res) => {
       });
     }
 
-    // Accept either "situation" or "description"
+    // --------------------------------------------------
+    // USER INPUT
+    // --------------------------------------------------
+
     const userDescription =
-      situation || description || "No additional description provided.";
+      situation ||
+      description ||
+      "No additional description provided.";
 
     const selectedTone = tone || "Sarcastic";
 
-    // Extract MIME type and Base64 data correctly
+    // --------------------------------------------------
+    // EXTRACT MIME TYPE AND BASE64 DATA
+    // --------------------------------------------------
+
     let mimeType = "image/jpeg";
     let cleanBase64 = imageBase64;
 
@@ -61,57 +95,82 @@ app.post("/api/generate-captions", async (req, res) => {
       cleanBase64 = dataUrlMatch[2];
     }
 
-    const systemPrompt = `
+    // --------------------------------------------------
+    // PROMPT
+    // --------------------------------------------------
+
+    const prompt = `
 You are GEFORCE, an expert AI meme caption generator.
 
-YOUR MOST IMPORTANT TASK:
-Analyze the ACTUAL IMAGE provided to you.
+Your MOST IMPORTANT TASK is to carefully analyze the ACTUAL IMAGE
+attached to this request.
+
+The captions MUST be based on what is actually visible in THIS IMAGE.
 
 Do NOT generate generic captions.
-Do NOT assume the image is something else.
+Do NOT assume the image contains something that is not visible.
 Do NOT reuse captions from previous requests.
 
-Look carefully at:
-- people
-- animals
-- objects
-- facial expressions
-- body language
-- actions
-- background
-- unusual details
-- relationships between objects/people
-- funny or awkward situations
+Carefully analyze:
 
-The captions MUST clearly relate to what is visibly happening in THIS IMAGE.
+- People
+- Animals
+- Objects
+- Facial expressions
+- Body language
+- Actions
+- Clothing
+- Background
+- Environment
+- Unusual details
+- Relationships between people or objects
+- Funny situations
+- Awkward situations
+- Unexpected details
 
 Additional user context:
+
 "${userDescription}"
 
 Selected tone:
+
 "${selectedTone}"
 
 Generate EXACTLY 5 captions.
 
-Each caption must be:
-1. Different from the other captions.
-2. Based on a different observation, joke, or perspective when possible.
-3. Natural and funny.
-4. Suitable for the selected tone.
-5. Specific to the uploaded image.
-6. Short enough to work as a meme caption.
+Each caption must:
 
-Do NOT:
-- repeat the same joke structure
-- repeat phrases
-- create generic "POV" captions for every option
-- mention things that cannot reasonably be seen or inferred from the image
-- use NSFW, hateful, discriminatory, or excessively offensive content
+1. Be specific to THIS uploaded image.
+2. Be different from the other captions.
+3. Use different wording.
+4. Preferably use a different joke or observation.
+5. Be natural and funny.
+6. Match the selected tone.
+7. Be short enough to work as a meme caption.
 
-Tone guidelines:
+IMPORTANT:
+Do NOT make all captions follow the same structure.
+
+Do NOT make every caption start with:
+- "POV"
+- "When"
+- "Me when"
+
+Do NOT repeat the same punchline.
+
+Do NOT invent details that cannot reasonably be seen or inferred from the image.
+
+Do NOT generate:
+- hateful content
+- discriminatory content
+- explicit sexual content
+- graphic violence
+- excessively offensive content
+
+TONE GUIDELINES:
 
 Sarcastic:
-Use dry humor, irony, and clever exaggeration.
+Use dry humor, irony, clever exaggeration, and sarcasm.
 
 Gen-Z:
 Use modern internet humor, casual language, and light slang.
@@ -123,18 +182,22 @@ Professional:
 Use clean, clever, workplace-safe humor.
 
 Dark Humor:
-Use mildly dark/edgy humor while remaining non-hateful, non-graphic, and safe.
+Use mildly dark or edgy humor while remaining non-hateful,
+non-graphic, and safe.
 
-Also suggest 2 or 3 meme templates that genuinely fit the situation.
+Also suggest 2 or 3 meme templates that genuinely fit the image.
 
 Choose ONLY from:
+
 - Drake Hotline Bling
 - Distracted Boyfriend
 - Two Buttons
 - Change My Mind
 - Expanding Brain
 
-Return ONLY valid JSON with exactly this structure:
+Return ONLY valid JSON.
+
+Use EXACTLY this structure:
 
 {
   "captions": [
@@ -151,14 +214,24 @@ Return ONLY valid JSON with exactly this structure:
 }
 `;
 
-    console.log("Generating captions...");
+    // --------------------------------------------------
+    // LOG REQUEST
+    // --------------------------------------------------
+
+    console.log("----------------------------------------");
+    console.log("GENERATING AI CAPTIONS");
     console.log("Tone:", selectedTone);
-    console.log("Image MIME type:", mimeType);
+    console.log("MIME Type:", mimeType);
     console.log(
-      "Image received:",
+      "Image size:",
       Math.round(cleanBase64.length / 1024),
       "KB"
     );
+    console.log("----------------------------------------");
+
+    // --------------------------------------------------
+    // GEMINI REQUEST
+    // --------------------------------------------------
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -166,10 +239,12 @@ Return ONLY valid JSON with exactly this structure:
       contents: [
         {
           role: "user",
+
           parts: [
             {
-              text: systemPrompt,
+              text: prompt,
             },
+
             {
               inlineData: {
                 mimeType: mimeType,
@@ -186,9 +261,35 @@ Return ONLY valid JSON with exactly this structure:
       },
     });
 
-    const responseText = response.text.trim();
+    // --------------------------------------------------
+    // GET AI RESPONSE
+    // --------------------------------------------------
+
+    if (!response || !response.text) {
+      throw new Error("Gemini returned an empty response.");
+    }
+
+    let responseText = response.text.trim();
 
     console.log("AI response received.");
+
+    // --------------------------------------------------
+    // REMOVE MARKDOWN CODE BLOCK IF PRESENT
+    // --------------------------------------------------
+
+    if (responseText.startsWith("```json")) {
+      responseText = responseText
+        .replace(/^```json\s*/, "")
+        .replace(/\s*```$/, "");
+    } else if (responseText.startsWith("```")) {
+      responseText = responseText
+        .replace(/^```\s*/, "")
+        .replace(/\s*```$/, "");
+    }
+
+    // --------------------------------------------------
+    // PARSE JSON
+    // --------------------------------------------------
 
     let parsedMemeData;
 
@@ -196,43 +297,92 @@ Return ONLY valid JSON with exactly this structure:
       parsedMemeData = JSON.parse(responseText);
     } catch (parseError) {
       console.error("JSON parsing failed.");
-      console.error("Raw AI response:", responseText);
+      console.error("Raw AI response:");
+      console.error(responseText);
 
       return res.status(500).json({
         error: "AI returned an invalid response.",
       });
     }
 
-    // Validate captions
+    // --------------------------------------------------
+    // VALIDATE CAPTIONS
+    // --------------------------------------------------
+
     if (
       !parsedMemeData.captions ||
-      !Array.isArray(parsedMemeData.captions) ||
-      parsedMemeData.captions.length < 5
+      !Array.isArray(parsedMemeData.captions)
     ) {
+      return res.status(500).json({
+        error: "AI did not return captions.",
+      });
+    }
+
+    if (parsedMemeData.captions.length < 5) {
       return res.status(500).json({
         error: "AI did not return enough captions.",
       });
     }
 
-    // Return only the first 5 captions
-    parsedMemeData.captions = parsedMemeData.captions.slice(0, 5);
+    // Keep exactly 5 captions
+    parsedMemeData.captions = parsedMemeData.captions
+      .slice(0, 5)
+      .map((caption) => String(caption).trim())
+      .filter((caption) => caption.length > 0);
 
-    // Make sure suggested memes exists
+    if (parsedMemeData.captions.length < 5) {
+      return res.status(500).json({
+        error: "AI returned fewer than 5 valid captions.",
+      });
+    }
+
+    // --------------------------------------------------
+    // VALIDATE MEME TEMPLATES
+    // --------------------------------------------------
+
+    const allowedMemes = [
+      "Drake Hotline Bling",
+      "Distracted Boyfriend",
+      "Two Buttons",
+      "Change My Mind",
+      "Expanding Brain",
+    ];
+
     if (!Array.isArray(parsedMemeData.suggested_memes)) {
       parsedMemeData.suggested_memes = [];
     }
 
-    console.log("Generated captions successfully.");
+    parsedMemeData.suggested_memes =
+      parsedMemeData.suggested_memes
+        .filter((meme) => allowedMemes.includes(meme))
+        .slice(0, 3);
 
-    res.json(parsedMemeData);
+    // --------------------------------------------------
+    // SUCCESS
+    // --------------------------------------------------
+
+    console.log("Generated 5 captions successfully.");
+
+    res.json({
+      captions: parsedMemeData.captions,
+      suggested_memes: parsedMemeData.suggested_memes,
+    });
+
   } catch (error) {
-    console.error("API Gateway Execution Error:");
+
+    // --------------------------------------------------
+    // ERROR HANDLING
+    // --------------------------------------------------
+
+    console.error("----------------------------------------");
+    console.error("GEFORCE BACKEND ERROR");
     console.error(error);
+    console.error("----------------------------------------");
 
     // IMPORTANT:
-    // Do not return fixed captions here.
-    // Fixed fallback captions caused the same captions
-    // to appear for different images.
+    // We do NOT return hardcoded captions here.
+    // This prevents the same captions appearing
+    // when AI generation fails.
 
     res.status(500).json({
       error: "Failed to generate captions.",
@@ -243,6 +393,10 @@ Return ONLY valid JSON with exactly this structure:
     });
   }
 });
+
+// --------------------------------------------------
+// START SERVER
+// --------------------------------------------------
 
 const PORT = process.env.PORT || 5000;
 
