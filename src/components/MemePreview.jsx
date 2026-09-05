@@ -1,87 +1,126 @@
-import { useEffect, useState } from "react";
-import { Image as ImageIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Image as ImageIcon, Download, Copy, Check } from "lucide-react";
 
 function MemePreview({ image, caption }) {
+  const canvasRef = useRef(null);
+  const cachedImgRef = useRef(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!image) {
       setImageUrl("");
+      cachedImgRef.current = null;
       return;
     }
 
-    // If image is already a URL
     if (typeof image === "string") {
       setImageUrl(image);
-      return;
-    }
-
-    // If image is a File
-    if (image instanceof File) {
+    } else if (image instanceof File) {
       const url = URL.createObjectURL(image);
       setImageUrl(url);
-
-      return () => {
-        URL.revokeObjectURL(url);
-      };
+      return () => URL.revokeObjectURL(url);
+    } else if (image.preview || image.url) {
+      setImageUrl(image.preview || image.url);
     }
-
-    // If image is an object
-    if (typeof image === "object") {
-      if (image.preview) {
-        setImageUrl(image.preview);
-        return;
-      }
-
-      if (image.url) {
-        setImageUrl(image.url);
-        return;
-      }
-
-      if (image.file instanceof File) {
-        const url = URL.createObjectURL(image.file);
-        setImageUrl(url);
-
-        return () => {
-          URL.revokeObjectURL(url);
-        };
-      }
-    }
-
-    setImageUrl("");
   }, [image]);
 
-  const previewCaption =
-    caption || "POV: You thought today was going to be productive 💀";
+  // Decode Image
+  useEffect(() => {
+    if (!imageUrl) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      cachedImgRef.current = img;
+      renderCanvas();
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
 
-  // No image
+  // Live Redraw when caption changes
+  useEffect(() => {
+    if (cachedImgRef.current) {
+      renderCanvas();
+    }
+  }, [caption]);
+
+  const renderCanvas = () => {
+    const canvas = canvasRef.current;
+    const img = cachedImgRef.current;
+    if (!canvas || !img) return;
+
+    const ctx = canvas.getContext("2d");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    const textToDraw = caption || "POV: YOU THOUGHT TODAY WAS GOING TO BE PRODUCTIVE 💀";
+    const fontSize = Math.floor(canvas.height * 0.075);
+    ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "white";
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = Math.max(fontSize * 0.18, 4);
+    ctx.lineJoin = "round";
+
+    // Text Wrap
+    const words = textToDraw.toUpperCase().split(" ");
+    let lines = [];
+    let currentLine = words[0] || "";
+    const maxWidth = canvas.width * 0.9;
+
+    for (let i = 1; i < words.length; i++) {
+      let testLine = currentLine + " " + words[i];
+      if (ctx.measureText(testLine).width > maxWidth) {
+        lines.push(currentLine);
+        currentLine = words[i];
+      } else {
+        currentLine = testLine;
+      }
+    }
+    lines.push(currentLine);
+
+    // Draw at the bottom of the meme
+    lines.forEach((line, index) => {
+      const lineY = canvas.height * 0.92 - (lines.length - 1 - index) * (fontSize * 1.15);
+      ctx.strokeText(line, canvas.width / 2, lineY);
+      ctx.fillText(line, canvas.width / 2, lineY);
+    });
+  };
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `meme-${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  const handleCopy = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   if (!imageUrl) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-white">
-            Meme Preview
-          </h2>
-
-          <p className="text-sm text-gray-500">
-            Your generated meme previews
-          </p>
-        </div>
-
-        <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black">
+        <h2 className="text-lg font-semibold text-white mb-1">Meme Canvas Engine</h2>
+        <p className="text-sm text-gray-500 mb-4">Upload an image to render your meme</p>
+        <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black">
           <div className="text-center">
-            <ImageIcon
-              size={45}
-              className="mx-auto mb-4 text-gray-600"
-            />
-
-            <h3 className="text-lg font-semibold text-gray-400">
-              No Image Yet
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-600">
-              Upload an image to preview your memes.
-            </p>
+            <ImageIcon size={45} className="mx-auto mb-3 text-gray-600" />
+            <p className="text-sm text-gray-400">No Image Uploaded Yet</p>
           </div>
         </div>
       </div>
@@ -89,108 +128,37 @@ function MemePreview({ image, caption }) {
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-
-      {/* Header */}
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold text-white">
-          Meme Preview
-        </h2>
-
-        <p className="text-sm text-gray-500">
-          Choose your preferred caption style
-        </p>
+    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white">🎨 Live Meme Canvas</h2>
+          <p className="text-xs text-gray-500">Auto-wrapped text with bold black stroke outlines</p>
+        </div>
       </div>
 
-      {/* Three Preview Styles */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* CANVAS VIEWPORT */}
+      <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-white/10 bg-black/60 p-3 overflow-hidden">
+        <canvas ref={canvasRef} className="max-w-full h-auto rounded-xl shadow-2xl border border-white/10" />
+      </div>
 
-        {/* ================= STYLE 1 ================= */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
-          <div className="relative">
+      {/* ACTION BUTTONS (MEMBER 3 DELIVERABLES) */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center justify-center gap-2 py-3 px-4 bg-white/10 hover:bg-white/15 text-white font-medium rounded-xl text-sm transition"
+        >
+          {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+          {copied ? "Copied Meme!" : "Copy to Clipboard"}
+        </button>
 
-            <img
-              src={imageUrl}
-              alt="Meme preview white background"
-              className="h-72 w-full object-contain"
-            />
-
-            {/* White Background */}
-            <div className="absolute bottom-0 left-0 right-0 bg-white px-4 py-3 text-center">
-              <p className="text-xs font-bold leading-relaxed text-black">
-                {previewCaption}
-              </p>
-            </div>
-
-          </div>
-
-          <div className="border-t border-white/10 px-3 py-3">
-            <p className="text-center text-xs font-medium text-gray-400">
-              Style 1 • White Background
-            </p>
-          </div>
-        </div>
-
-
-        {/* ================= STYLE 2 ================= */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
-          <div className="relative">
-
-            <img
-              src={imageUrl}
-              alt="Meme preview no background"
-              className="h-72 w-full object-contain"
-            />
-
-            {/* No Background */}
-            <div className="absolute bottom-0 left-0 right-0 px-4 py-4 text-center">
-              <p
-                className="text-xs font-extrabold leading-relaxed text-white"
-                style={{
-                  textShadow:
-                    "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000",
-                }}
-              >
-                {previewCaption}
-              </p>
-            </div>
-
-          </div>
-
-          <div className="border-t border-white/10 px-3 py-3">
-            <p className="text-center text-xs font-medium text-gray-400">
-              Style 2 • No Background
-            </p>
-          </div>
-        </div>
-
-
-        {/* ================= STYLE 3 ================= */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
-          <div className="relative">
-
-            <img
-              src={imageUrl}
-              alt="Meme preview transparent black background"
-              className="h-72 w-full object-contain"
-            />
-
-            {/* Semi-transparent Black Background */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-3 text-center">
-              <p className="text-xs font-bold leading-relaxed text-white">
-                {previewCaption}
-              </p>
-            </div>
-
-          </div>
-
-          <div className="border-t border-white/10 px-3 py-3">
-            <p className="text-center text-xs font-medium text-gray-400">
-              Style 3 • Transparent Black
-            </p>
-          </div>
-        </div>
-
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="flex items-center justify-center gap-2 py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-red-600/30"
+        >
+          <Download size={16} /> Download PNG
+        </button>
       </div>
     </div>
   );
