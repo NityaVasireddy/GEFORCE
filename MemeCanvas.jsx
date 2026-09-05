@@ -1,12 +1,17 @@
- import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import memeTemplates from './memes.json';
 
-export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomText = "", aiSuggestions = [] }) {
+export default function MemeCanvas({ 
+  uploadedImageBase64, 
+  topText = "", 
+  bottomText = "", 
+  aiSuggestions = [] 
+}) {
   const canvasRef = useRef(null);
-  const cachedImageRef = useRef(null); // Fix 1: Cache decoded image to prevent typing stutter
-  const [copyStatus, setCopyStatus] = useState("📋 Copy Meme");
+  const cachedImageRef = useRef(null);
+  const [copyStatus, setCopyStatus] = useState("📋 Copy to Clipboard");
 
-  // Load and cache image only when uploadedImageBase64 changes
+  // Cache decoded image only when upload changes (prevents keystroke stutter)
   useEffect(() => {
     if (!uploadedImageBase64) {
       cachedImageRef.current = null;
@@ -14,7 +19,7 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     }
 
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Fix 2: Prevent CORS canvas tainting
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       cachedImageRef.current = img;
       renderCanvas();
@@ -22,7 +27,7 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     img.src = uploadedImageBase64;
   }, [uploadedImageBase64]);
 
-  // Fast re-render when text changes (zero image re-decoding lag)
+  // Instant 60fps re-render on text changes
   useEffect(() => {
     if (cachedImageRef.current) {
       renderCanvas();
@@ -39,8 +44,7 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
 
-    // Dynamic sizing based on canvas dimensions
-    let fontSize = Math.floor(canvas.height * 0.075);
+    const fontSize = Math.floor(canvas.height * 0.075);
     ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = 'white';
@@ -68,10 +72,9 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
       }
       lines.push(currentLine);
 
-      // Fix 3: Handle single words that are wider than canvas maxWidth
+      // Break long unbroken words/hashtags that exceed maxWidth
       lines = lines.flatMap(line => {
         if (ctx.measureText(line).width <= maxWidth) return [line];
-        // Break long unbroken word into sub-chunks
         const chunks = [];
         let chunk = "";
         for (let char of line) {
@@ -86,7 +89,6 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
         return chunks;
       });
 
-      // Draw lines with outline stroke
       lines.forEach((line, index) => {
         let lineY = yPosition;
         if (isTop) {
@@ -111,18 +113,16 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     }
   };
 
-  // Standard File Download
   const downloadMeme = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataURL = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `meme-${Date.now()}.png`;
+    link.download = `viral-meme-${Date.now()}.png`;
     link.href = dataURL;
     link.click();
   };
 
-  // Fix 4: Instant 1-Click Clipboard Copy (Massive UX upgrade for demos)
   const copyMemeToClipboard = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -130,21 +130,20 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
       canvas.toBlob(async (blob) => {
         if (!blob) return;
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        setCopyStatus("✅ Copied to Clipboard!");
-        setTimeout(() => setCopyStatus("📋 Copy Meme"), 2500);
+        setCopyStatus("✅ Copied!");
+        setTimeout(() => setCopyStatus("📋 Copy to Clipboard"), 2500);
       });
     } catch (err) {
-      console.warn("Clipboard write failed:", err);
+      console.warn("Clipboard copy error:", err);
       setCopyStatus("⚠️ Copy Failed (Use Download)");
-      setTimeout(() => setCopyStatus("📋 Copy Meme"), 2500);
+      setTimeout(() => setCopyStatus("📋 Copy to Clipboard"), 2500);
     }
   };
 
-  // Defensive matching: handles strings, objects, IDs, and names safely
+  // Robust matching against template IDs and names (supports strings or objects)
   const recommendedMemes = memeTemplates.filter(template => {
     return (aiSuggestions || []).some(suggestion => {
       if (!suggestion) return false;
-      // Extract string safely even if Member 2 returns { id: "..." } or { name: "..." }
       const rawText = typeof suggestion === 'string' 
         ? suggestion 
         : (suggestion.name || suggestion.id || suggestion.format || '');
@@ -161,7 +160,7 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
 
   return (
     <div className="p-6 bg-gray-900 border border-gray-800 rounded-2xl text-white shadow-2xl max-w-3xl mx-auto space-y-6">
-      {/* Suggestions Display Panel */}
+      {/* Suggestions Display panel */}
       {recommendedMemes.length > 0 && (
         <div className="p-4 bg-gradient-to-r from-indigo-900/40 to-blue-900/40 border border-indigo-500/40 rounded-xl">
           <h3 className="font-bold text-base flex items-center gap-2 text-indigo-400 mb-2">
@@ -179,13 +178,13 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
       )}
       
       {/* Canvas Display Viewport */}
-      <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-xl p-4 bg-black/40 min-h-[300px]">
+      <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-xl p-4 bg-black/40 min-h-[320px]">
         {uploadedImageBase64 ? (
           <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-xl border border-gray-800" />
         ) : (
           <div className="text-center space-y-2">
-            <p className="text-gray-500 text-sm font-medium">Canvas Workspace Sandbox Active</p>
-            <p className="text-gray-600 text-xs">Waiting for Member 1 upload input...</p>
+            <p className="text-gray-400 text-sm font-medium">Canvas Workspace Sandbox Active</p>
+            <p className="text-gray-600 text-xs">Waiting for image upload...</p>
           </div>
         )}
       </div>
@@ -211,4 +210,3 @@ export default function MemeCanvas({ uploadedImageBase64, topText = "", bottomTe
     </div>
   );
 }
-
