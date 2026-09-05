@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import { auth } from "./firebase";
-import Login from "./pages/Login";
 
 import Header from "./components/Header";
 import ImageUpload from "./components/ImageUpload";
@@ -9,54 +9,111 @@ import DescriptionInput from "./components/DescriptionInput";
 import ToneSelector from "./components/ToneSelector";
 import GenerateButton from "./components/GenerateButton";
 import ResultsGrid from "./components/ResultsGrid";
-import MemePreview from "./components/MemePreview";
-import HistoryFavorites from "./components/HistoryFavorites";
 import HashtagSuggestions from "./components/HashtagSuggestions";
 import MemeSuggestions from "./components/MemeSuggestions";
+import MemePreview from "./components/MemePreview";
+import HistoryFavorites from "./components/HistoryFavorites";
 
-// Auto-connect to deployed Render URL or fallback to localhost
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+/* =========================
+   Convert File to Base64
+========================= */
+
+const getBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.readAsDataURL(file);
+
+    reader.onload = () => resolve(reader.result);
+
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 function App() {
+  /* =========================
+     Authentication
+  ========================= */
+
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
+
+  /* =========================
+     Theme
+  ========================= */
 
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem("theme") !== "light";
+    const savedTheme = localStorage.getItem("theme");
+
+    if (savedTheme) {
+      return savedTheme === "dark";
+    }
+
+    return true;
   });
 
+  /* =========================
+     Main States
+  ========================= */
+
   const [image, setImage] = useState(null);
+
   const [description, setDescription] = useState("");
-  const [tone, setTone] = useState("Gen-Z Humor");
+
+  const [tone, setTone] = useState("Funny");
+
   const [platform, setPlatform] = useState("Instagram");
 
+  /* =========================
+     Caption States
+  ========================= */
+
   const [captions, setCaptions] = useState([]);
-  const [aiSuggestions, setAiSuggestions] = useState([]);
+
   const [selectedCaption, setSelectedCaption] = useState("");
 
-  /* ================= AUTHENTICATION ================= */
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  /* =========================
+     Firebase Auth Listener
+  ========================= */
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (currentUser) => {
+        setUser(currentUser);
+      }
+    );
+
     return () => unsubscribe();
   }, []);
 
-  /* ================= DARK MODE ================= */
+  /* =========================
+     Theme Effect
+  ========================= */
+
   useEffect(() => {
     if (darkMode) {
+      document.documentElement.classList.remove("light");
+
       document.documentElement.classList.add("dark");
+
       localStorage.setItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
+
       document.documentElement.classList.add("light");
+
       localStorage.setItem("theme", "light");
     }
   }, [darkMode]);
 
-  /* ================= LOGOUT ================= */
+  /* =========================
+     Logout
+  ========================= */
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -65,239 +122,462 @@ function App() {
     }
   };
 
-  /* ================= HELPER: BASE64 IMAGE ================= */
-  const getBase64 = (file) => {
-    return new Promise((resolve) => {
-      if (!file || !(file instanceof File)) return resolve(null);
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    });
-  };
+  /* =========================
+     Generate Captions
+  ========================= */
 
-  /* ================= GENERATE (CONNECTED TO BACKEND API) ================= */
   const handleGenerate = async () => {
     if (!description.trim() && !image) {
-      alert("Please upload an image or enter a description.");
+      alert(
+        "Please upload an image or enter a description."
+      );
+
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Process Image
+      /* =========================
+         1. Extract Exact Base64 Image
+      ========================= */
+
       let imageBase64 = null;
-      if (image instanceof File) {
-        imageBase64 = await getBase64(image);
+
+      if (image?.base64) {
+        imageBase64 = image.base64;
+      } else if (image?.preview) {
+        imageBase64 = image.preview;
       } else if (typeof image === "string") {
         imageBase64 = image;
-      } else if (image && image.file instanceof File) {
+      } else if (image instanceof File) {
+        imageBase64 = await getBase64(image);
+      } else if (image?.file instanceof File) {
         imageBase64 = await getBase64(image.file);
       }
 
-      // 2. Call Express Backend API
-      const res = await fetch(`${API_URL}/api/generate-captions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageBase64,
-          context: description,
-          tone,
-          platform,
-        }),
-      });
+      console.log(
+        "Image Base64 available:",
+        !!imageBase64
+      );
 
-      const data = await res.json();
+      /* =========================
+         2. Backend API Request
+      ========================= */
 
-      if (data && data.captions && data.captions.length > 0) {
-        const formattedCaptions = data.captions.map((item, idx) => ({
-          id: idx + 1,
-          caption: typeof item === "string" ? item : item.caption || item.text,
-        }));
+      const response = await fetch(
+        "http://localhost:5000/api/generate",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            description,
+            tone,
+            platform,
+            imageBase64,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Server error: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      console.log("Backend response:", data);
+
+      /* =========================
+         3. Captions
+      ========================= */
+
+      if (
+        data.success &&
+        Array.isArray(data.captions)
+      ) {
+        const formattedCaptions =
+          data.captions.map((item, index) => {
+            if (typeof item === "string") {
+              return {
+                id: Date.now() + index,
+                caption: item,
+              };
+            }
+
+            return {
+              id:
+                item.id ||
+                Date.now() + index,
+
+              caption:
+                item.caption ||
+                item.text ||
+                "",
+            };
+          });
 
         setCaptions(formattedCaptions);
-        setSelectedCaption(formattedCaptions[0].caption);
 
-        const suggestions = data.aiSuggestions || [
-          "#Relatable",
-          "#Viral",
-          "#Memes",
-          "#Mood",
-          "#Trending",
-        ];
-        setAiSuggestions(suggestions);
-
-        // Save to History
-        const historyItem = {
-          id: Date.now(),
-          description,
-          tone,
-          platform,
-          caption: formattedCaptions[0].caption,
-          date: new Date().toLocaleString(),
-        };
-        const oldHistory = JSON.parse(localStorage.getItem("captionHistory")) || [];
-        localStorage.setItem("captionHistory", JSON.stringify([historyItem, ...oldHistory]));
+        if (formattedCaptions.length > 0) {
+          setSelectedCaption(
+            formattedCaptions[0].caption
+          );
+        }
       } else {
-        throw new Error("Empty captions returned");
+        setCaptions([]);
+        setSelectedCaption("");
       }
-    } catch (error) {
-      console.warn("Backend API not reachable or offline, activating fallback:", error);
 
-      // Safe Demo Fallback (Guarantees demo NEVER breaks)
-      const fallbackList = [
-        { id: 1, caption: "POV: When the code finally compiles on the first try 🚀" },
-        { id: 2, caption: "Main character energy unlocked 😎🔥" },
-        { id: 3, caption: "Deploying directly to production at midnight... what could go wrong? 💀" },
-        { id: 4, caption: "Powered purely by coffee, adrenaline, and zero sleep ☕" },
-        { id: 5, caption: "Zero errors in test suite because I simply commented them out 😂" },
-      ];
-      setCaptions(fallbackList);
-      setSelectedCaption(fallbackList[0].caption);
-      setAiSuggestions(["#Relatable", "#Coding", "#Hackathon", "#Mood", "#Viral"]);
+      /* =========================
+         4. Hashtags
+      ========================= */
+
+      if (Array.isArray(data.hashtags)) {
+        setAiSuggestions(data.hashtags);
+      } else {
+        setAiSuggestions([]);
+      }
+
+      /* =========================
+         5. Save History
+      ========================= */
+
+      const firstCaption =
+        data.captions?.[0];
+
+      const historyCaption =
+        typeof firstCaption === "string"
+          ? firstCaption
+          : firstCaption?.caption ||
+            firstCaption?.text ||
+            "";
+
+      const historyItem = {
+        id: Date.now(),
+
+        description,
+
+        tone,
+
+        platform,
+
+        caption: historyCaption,
+
+        date: new Date().toLocaleString(),
+      };
+
+      const oldHistory =
+        JSON.parse(
+          localStorage.getItem(
+            "captionHistory"
+          )
+        ) || [];
+
+      localStorage.setItem(
+        "captionHistory",
+        JSON.stringify([
+          historyItem,
+          ...oldHistory,
+        ])
+      );
+    } catch (error) {
+      console.error(
+        "Generation error:",
+        error
+      );
+
+      alert(
+        "Unable to connect to the backend. Please make sure your backend server is running on port 5000."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= SELECT CAPTION ================= */
+  /* =========================
+     Select Caption
+  ========================= */
+
   const handleSelectCaption = (item) => {
-    const text = typeof item === "string" ? item : item?.caption || "";
+    const text =
+      typeof item === "string"
+        ? item
+        : item?.caption || "";
+
     setSelectedCaption(text);
   };
 
-  /* ================= LOADING SCREEN ================= */
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080808] text-white">
-        <p className="animate-pulse text-gray-400">Loading AI Caption Generator...</p>
-      </div>
-    );
-  }
+  /* =========================
+     UI
+  ========================= */
 
-  /* ================= LOGIN SCREEN ================= */
-  if (!user) {
-    return <Login />;
-  }
-
-  /* ================= MAIN UI ================= */
   return (
     <div
       className={`min-h-screen transition-colors duration-300 ${
-        darkMode ? "bg-[#080808] text-white" : "bg-[#f5f5f5] text-black"
+        darkMode
+          ? "bg-[#080808] text-white"
+          : "bg-[#f5f5f5] text-black"
       }`}
     >
-      {/* HEADER */}
-      <Header darkMode={darkMode} setDarkMode={setDarkMode} onLogout={handleLogout} />
+      {/* Header */}
 
-      {/* MAIN CONTENT */}
+      <Header
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        onLogout={handleLogout}
+      />
+
       <main className="mx-auto max-w-7xl px-5 py-8">
-        {/* WELCOME BANNER */}
+
+        {/* =========================
+            Page Heading
+        ========================= */}
+
         <div className="mb-8">
-          <h1 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-black"}`}>
+
+          <h1
+            className={`text-3xl font-bold ${
+              darkMode
+                ? "text-white"
+                : "text-black"
+            }`}
+          >
             AI Meme & Caption Generator
           </h1>
-          <p className={`mt-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Create funny, creative and engaging captions for your social media posts.
+
+          <p
+            className={`mt-2 ${
+              darkMode
+                ? "text-gray-400"
+                : "text-gray-600"
+            }`}
+          >
+            Create funny, creative and engaging
+            captions for your social media posts.
           </p>
+
           {user && (
-            <p className="mt-2 text-sm text-gray-500">
-              Welcome, {user.displayName || user.email}
+            <p
+              className={`mt-2 text-sm ${
+                darkMode
+                  ? "text-gray-500"
+                  : "text-gray-500"
+              }`}
+            >
+              Welcome,{" "}
+              {user.displayName ||
+                user.email}
             </p>
           )}
         </div>
 
-        {/* INPUT SECTION */}
+        {/* =========================
+            Input Section
+        ========================= */}
+
         <section
           className={`rounded-3xl border p-6 transition-colors ${
-            darkMode ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-white shadow-sm"
+            darkMode
+              ? "border-white/10 bg-white/[0.03]"
+              : "border-black/10 bg-white shadow-sm"
           }`}
         >
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+            {/* Image */}
+
             <div>
-              <ImageUpload image={image} setImage={setImage} />
+              <ImageUpload
+                image={image}
+                setImage={setImage}
+              />
             </div>
+
+            {/* Description */}
+
             <div>
-              <DescriptionInput description={description} setDescription={setDescription} />
+              <DescriptionInput
+                description={description}
+                setDescription={
+                  setDescription
+                }
+              />
             </div>
+
           </div>
 
-          {/* TONE & PLATFORM SELECTORS */}
+          {/* Tone + Platform */}
+
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-            <ToneSelector tone={tone} setTone={setTone} />
+
+            {/* Tone */}
+
+            <ToneSelector
+              tone={tone}
+              setTone={setTone}
+            />
+
+            {/* Platform */}
 
             <div>
-              <label className={`mb-2 block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                Platform
-              </label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className={`w-full rounded-xl border px-4 py-3 outline-none transition ${
-                  darkMode ? "border-white/10 bg-black text-white" : "border-black/10 bg-white text-black"
+
+              <label
+                className={`mb-2 block text-sm font-medium ${
+                  darkMode
+                    ? "text-gray-300"
+                    : "text-gray-700"
                 }`}
               >
-                <option value="Instagram">Instagram</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Twitter">Twitter / X</option>
-                <option value="LinkedIn">LinkedIn</option>
-                <option value="WhatsApp">WhatsApp</option>
+                Platform
+              </label>
+
+              <select
+                value={platform}
+                onChange={(e) =>
+                  setPlatform(
+                    e.target.value
+                  )
+                }
+                className={`w-full rounded-xl border px-4 py-3 outline-none transition ${
+                  darkMode
+                    ? "border-white/10 bg-black text-white"
+                    : "border-black/10 bg-white text-black"
+                }`}
+              >
+
+                <option value="Instagram">
+                  Instagram
+                </option>
+
+                <option value="Facebook">
+                  Facebook
+                </option>
+
+                <option value="Twitter">
+                  Twitter / X
+                </option>
+
+                <option value="LinkedIn">
+                  LinkedIn
+                </option>
+
+                <option value="WhatsApp">
+                  WhatsApp
+                </option>
+
               </select>
             </div>
+
           </div>
 
-          {/* GENERATE ACTION */}
+          {/* Generate */}
+
           <div className="mt-6">
-            <GenerateButton onClick={handleGenerate} loading={loading} />
+
+            <GenerateButton
+              onClick={handleGenerate}
+              loading={loading}
+            />
+
           </div>
+
         </section>
 
-        {/* RESULTS GRID (WITH APPLY BUTTON) */}
+        {/* =========================
+            Caption Results
+        ========================= */}
+
         {captions.length > 0 && (
           <section className="mt-8">
-            <ResultsGrid captions={captions} onSelectCaption={handleSelectCaption} />
+
+            <ResultsGrid
+              captions={captions}
+              onSelectCaption={
+                handleSelectCaption
+              }
+            />
+
           </section>
         )}
 
-        {/* HASHTAG SUGGESTIONS */}
+        {/* =========================
+            Hashtags
+        ========================= */}
+
         {captions.length > 0 && (
           <section className="mt-8">
+
             <HashtagSuggestions
               description={description}
               tone={tone}
               platform={platform}
               hashtags={aiSuggestions}
             />
+
           </section>
         )}
 
-        {/* MEME FORMAT SUGGESTIONS */}
+        {/* =========================
+            Meme Suggestions
+        ========================= */}
+
         {captions.length > 0 && (
           <section className="mt-8">
-            <MemeSuggestions description={description} tone={tone} />
+
+            <MemeSuggestions
+              description={description}
+              tone={tone}
+            />
+
           </section>
         )}
 
-        {/* MEME CANVAS ENGINE & DOWNLOAD (MEMBER 3 INTEGRATION) */}
+        {/* =========================
+            Meme Preview
+        ========================= */}
+
         <section className="mt-8">
-          <MemePreview image={image} caption={selectedCaption} />
+
+          <MemePreview
+            image={image}
+            caption={selectedCaption}
+          />
+
         </section>
 
-        {/* HISTORY & FAVORITES */}
+        {/* =========================
+            History & Favorites
+        ========================= */}
+
         <section className="mt-8">
+
           <HistoryFavorites />
+
         </section>
+
       </main>
 
-      {/* FOOTER */}
+      {/* =========================
+          Footer
+      ========================= */}
+
       <footer
         className={`border-t px-5 py-6 text-center text-sm ${
-          darkMode ? "border-white/10 text-gray-600" : "border-black/10 text-gray-500"
+          darkMode
+            ? "border-white/10 text-gray-600"
+            : "border-black/10 text-gray-500"
         }`}
       >
         AI Meme & Caption Generator © 2026
       </footer>
+
     </div>
   );
 }
