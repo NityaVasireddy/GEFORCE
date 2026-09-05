@@ -3,5 +3,10 @@
   { "id": "boyfriend", "name": "Distracted Boyfriend", "description": "A man looking at another woman while his girlfriend looks angry.", "use_case": "Choosing a new tempting option over your current commitment." },
   { "id": "buttons", "name": "Two Buttons", "description": "A man sweating while trying to choose between two conflicting buttons.", "use_case": "Hard decisions where both options lead to anxiety." },
   { "id": "mind", "name": "Change My Mind", "description": "A man sitting at a desk with a sign challenging others to debate his opinion.", "use_case": "Stating a strong opinion confidently." },
-  { "id": "brain", "name": "Expanding Brain", "description": "A series of brains getting progressively more glowing and complex.", "use_case": "Comparing simple ideas to absurdly 'genius' ideas." }
+  { "id": "brain", "name": "Expanding Brain", "description": "A series of brains getting progressively more glowing and complex.", "use_case": "Comparing simple ideas to absurdly 'genius' ideas." },
+  { "id": "cat_yelling", "name": "Woman Yelling at Cat", "description": "A woman screaming and pointing while a confused cat sits at a dinner table.", "use_case": "Accusing someone who is completely innocent or indifferent." },
+  { "id": "gru_plan", "name": "Gru's Plan", "description": "Gru presenting steps of his evil plan on a board, then realizing the final step backfires.", "use_case": "A plan that goes disastrously wrong at the end." },
+  { "id": "panik_kalm", "name": "Panik Kalm Panik", "description": "Meme man reacting with panic, then relief, then sudden extreme panic.", "use_case": "A rollercoaster of bad news, false hope, and worse news." },
+  { "id": "disaster_girl", "name": "Disaster Girl", "description": "A little girl smiling deviously at the camera while a house burns in the background.", "use_case": "Taking pleasure in chaos or causing unintentional destruction." },
+  { "id": "this_is_fine", "name": "This Is Fine Dog", "description": "A dog wearing a hat sipping coffee in a room completely engulfed in flames.", "use_case": "Denying a clearly disastrous situation while staying calm." }
 ]
