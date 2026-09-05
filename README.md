@@ -1,39 +1,50 @@
-# AI Meme and Social Media Caption Generator (GEFORCE)
+# 🎭 AI Meme Generator
 
-An autonomous, AI-driven tool designed for social media managers and casual content creators to instantly convert situation contexts or uploaded image inputs into witty, high-engagement captions and fully formatted visual memes.
+> **Turn any image into viral, high-engagement memes in seconds using multimodal AI analysis and context-aware caption generation.**
 
----
-
-## 🛠️ Architecture & Core Team Breakdown
-
-### Frontend Layer
-* **Member 1 (UI & UX Core):** React layout architecture tracking Vite + Tailwind CSS setups, icon integration scripts (`lucide-react`), and Base64 upload pipelines.
-
-### Data & Canvas Layer (My Track)
-* **Member 3 (Meme Data & Canvas Engineer):** Engineered static metadata engine (`memes.json`) managing popular formats and integrated custom HTML5 dynamic canvas rendering module (`MemeCanvas.jsx`) supporting heavy text borders and automatic multi-line word wrapping.
-
-### Backend & Service Layer
-* **Member 2 (Backend & AI Specialist):** Express server mapping POST endpoints, custom API connector keys, and structured JSON prompt responses.
-* **Member 4 (DevOps & Integration Lead):** Branch release coordinator, remote environment pipeline hosting integrations, and demo edge-case testing suites.
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
 ---
 
-## 🚀 Component Integration Guide
-To seamlessly embed the meme rendering module into the primary React dashboard, fetch project updates and insert the following component layout:
+## 🌟 Executive Summary
 
-```jsx
-import MemeCanvas from './MemeCanvas';
+The **AI Meme Generator** bridges the gap between vision AI and meme culture. Standard image tools only add plain text to images, but our app analyzes spatial content, emotional cues, and visual contexts to suggest tailor-made captions paired with popular, high-converting meme templates.
 
-<MemeCanvas 
-  uploadedImageBase64={userImageBase64String} 
-  topText={topMemeText}                       
-  bottomText={bottomMemeText}                 
-  aiSuggestions={aiResponseJSON.suggested_memes} 
-/>
-```
+### **The Problem**
+Content creators and community managers spend hours brainstorming witty captions and searching for matching meme formats for social media campaigns.
 
-### Features Built into `MemeCanvas`:
-* **Thick Black Contrast Outlines:** Guarantees readability across light or dark image backgrounds.
-* **Intelligent Word-Wrapping:** Automatically breaks long text lines into balanced blocks to protect UI boundaries.
-* **Instant Export:** Direct canvas-to-data downloads with a single button click.
+### **Our Solution**
+An end-to-end web app that ingests image uploads, lets users pick a specific visual tone, generates context-aware captions via vision LLMs, and maps the input directly onto curated meme canvas overlays—all in under 3 seconds.
 
+---
+
+## 🚀 Live Demo & Infrastructure
+
+* **Frontend Application:** [https://ai-meme-generator.vercel.app](https://ai-meme-generator.vercel.app)
+* **Backend API Gateway:** [https://ai-meme-server.onrender.com](https://ai-meme-server.onrender.com)
+* **Source Code:** [https://github.com/NityaVasireddy/first-hackathon](https://github.com/NityaVasireddy/first-hackathon)
+
+---
+
+## ✨ Key Features
+
+* 🧠 **Multimodal Vision Analysis:** Leverages Vision LLMs to detect objects, facial expressions, and implicit scenes within uploaded photos.
+* 🎭 **Dynamic Vibe Matrix:** Custom prompt engineering profiles for 5 unique tones (*Sarcastic*, *Gen-Z / Brainrot*, *Wholesome*, *Corporate*, *Absurdist*).
+* 📐 **Template Matching Engine:** Automatically ranks and suggests classic template layouts (e.g., *Distracted Boyfriend*, *Drake Hotline*) based on image context.
+* ⚡ **Client-Side Canvas Rendering:** Instant, pixel-perfect meme generation rendered entirely in the user's browser using HTML5 Canvas—zero server-side image processing bloat.
+* 🛡️ **Enterprise Safety & Fallbacks:** Automated content filtering and structured JSON fallbacks to ensure reliable API responses under heavy load.
+
+---
+
+## 🏗️ System Architecture
+
+```text
+[ User Interface ] ──( Image & Tone )──> [ Express API Gateway ]
+        │                                           │
+  HTML5 Canvas Rendering                    OpenAI Vision / Claude
+  & Local Export (.png)                            │
+        ▲                                           ▼
+        └─────────────( Structured JSON )───────────┘
+                    Captions + Template IDs
