@@ -1,94 +1,253 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
 
-// Ensure your team installs the correct package via: npm install @google/genai
-const { GoogleGenAI } = require('@google/genai'); 
+const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
 
-// Enable secure cross-origin requests so your Vercel frontend can talk to it cleanly
-app.use(cors({
-  origin: '*', 
-  methods: ['GET', 'POST']
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+  })
+);
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: "50mb" }));
 
-// Initializing the advanced multimodal inference model engine
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY });
+const apiKey =
+  process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
-app.post('/api/generate-captions', async (req, res) => {
+if (!apiKey) {
+  console.error("ERROR: GEMINI_API_KEY is not configured.");
+}
+
+const ai = new GoogleGenAI({
+  apiKey,
+});
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "GEFORCE backend is running",
+  });
+});
+
+app.post("/api/generate-captions", async (req, res) => {
   try {
-    const { imageBase64, situation, tone } = req.body;
+    const { imageBase64, situation, description, tone } = req.body;
 
-    // Advanced System Directive: Explicitly forces 5 completely separate caption styles
-    const systemPrompt = `
-      You are a professional, world-class AI Meme Engineer and Viral Social Media Copywriter.
-      Analyze the input context carefully (Situation: "${situation || 'Not provided'}").
-      
-      CRITICAL REQUIREMENT: Generate a batch of exactly 5 completely DIFFERENT, DISTINCT, and UNIQUE caption options.
-      - Each option must use entirely unique word choice, length, joke structures, and comedic setups.
-      - Absolutely DO NOT repeat the same phrase, joke, or punchline template across options.
-      - Strictly follow the selected stylistic presentation tone parameter: "${tone || 'Sarcastic'}".
-      
-      Also provide 2-3 accurate matching template suggestions from this list: ["Drake Hotline Bling", "Distracted Boyfriend", "Two Buttons", "Change My Mind", "Expanding Brain"].
-
-      Your response must be returned in raw, valid JSON formatting ONLY matching this structure block:
-      {
-        "captions": ["Genuinely unique and funny option 1", "Entirely different hilarious option 2", "Distinct option 3", "Clever variation option 4", "Sharp punchline option 5"],
-        "suggested_memes": ["Template Name 1", "Template Name 2"]
-      }
-    `;
-
-    let modelInput = [systemPrompt];
-
-    // Decode base64 stream directly into the multimodal model array safely if provided
-    if (imageBase64) {
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      modelInput.push({
-        inlineData: {
-          data: cleanBase64,
-          mimeType: "image/jpeg"
-        }
+    if (!imageBase64) {
+      return res.status(400).json({
+        error: "No image was provided.",
       });
     }
 
-    // Call the lightning-fast multimodal intelligence runner
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', 
-      contents: modelInput,
-    });
+    // Accept either "situation" or "description"
+    const userDescription =
+      situation || description || "No additional description provided.";
 
-    // Clean any accidental markdown wrapper characters coming from raw LLM output text
-    let responseText = response.text.trim();
-    if (responseText.startsWith("```json")) {
-      responseText = responseText.replace(/^```json/, "").replace(/```\$/, "");
-    } else if (responseText.startsWith("```")) {
-      responseText = responseText.replace(/^```/, "").replace(/```$/, "");
+    const selectedTone = tone || "Sarcastic";
+
+    // Extract MIME type and Base64 data correctly
+    let mimeType = "image/jpeg";
+    let cleanBase64 = imageBase64;
+
+    const dataUrlMatch = imageBase64.match(
+      /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
+    );
+
+    if (dataUrlMatch) {
+      mimeType = dataUrlMatch[1];
+      cleanBase64 = dataUrlMatch[2];
     }
 
-    const parsedMemeData = JSON.parse(responseText.trim());
-    
-    // Return the clean, isolated variety list down to your MemePreview dashboard component
-    res.json(parsedMemeData);
+    const systemPrompt = `
+You are GEFORCE, an expert AI meme caption generator.
 
-  } catch (error) {
-    console.error("API Gateway Execution Error:", error);
-    res.status(500).json({ 
-      error: "Failed to compile unique batch caption options", 
-      captions: [
-        "When local code env throws a fit right before final submission 💀",
-        "It worked perfectly fine on my machine, I swear",
-        "Me watching the deployment build log line spin indefinitely",
-        "Surviving on pure caffeine and dreams of winning the grand prize",
-        "POV: The automated testing suite grades your repository at 100/100"
+YOUR MOST IMPORTANT TASK:
+Analyze the ACTUAL IMAGE provided to you.
+
+Do NOT generate generic captions.
+Do NOT assume the image is something else.
+Do NOT reuse captions from previous requests.
+
+Look carefully at:
+- people
+- animals
+- objects
+- facial expressions
+- body language
+- actions
+- background
+- unusual details
+- relationships between objects/people
+- funny or awkward situations
+
+The captions MUST clearly relate to what is visibly happening in THIS IMAGE.
+
+Additional user context:
+"${userDescription}"
+
+Selected tone:
+"${selectedTone}"
+
+Generate EXACTLY 5 captions.
+
+Each caption must be:
+1. Different from the other captions.
+2. Based on a different observation, joke, or perspective when possible.
+3. Natural and funny.
+4. Suitable for the selected tone.
+5. Specific to the uploaded image.
+6. Short enough to work as a meme caption.
+
+Do NOT:
+- repeat the same joke structure
+- repeat phrases
+- create generic "POV" captions for every option
+- mention things that cannot reasonably be seen or inferred from the image
+- use NSFW, hateful, discriminatory, or excessively offensive content
+
+Tone guidelines:
+
+Sarcastic:
+Use dry humor, irony, and clever exaggeration.
+
+Gen-Z:
+Use modern internet humor, casual language, and light slang.
+
+Wholesome:
+Use cute, positive, warm, and playful humor.
+
+Professional:
+Use clean, clever, workplace-safe humor.
+
+Dark Humor:
+Use mildly dark/edgy humor while remaining non-hateful, non-graphic, and safe.
+
+Also suggest 2 or 3 meme templates that genuinely fit the situation.
+
+Choose ONLY from:
+- Drake Hotline Bling
+- Distracted Boyfriend
+- Two Buttons
+- Change My Mind
+- Expanding Brain
+
+Return ONLY valid JSON with exactly this structure:
+
+{
+  "captions": [
+    "caption 1",
+    "caption 2",
+    "caption 3",
+    "caption 4",
+    "caption 5"
+  ],
+  "suggested_memes": [
+    "template 1",
+    "template 2"
+  ]
+}
+`;
+
+    console.log("Generating captions...");
+    console.log("Tone:", selectedTone);
+    console.log("Image MIME type:", mimeType);
+    console.log(
+      "Image received:",
+      Math.round(cleanBase64.length / 1024),
+      "KB"
+    );
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: systemPrompt,
+            },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: cleanBase64,
+              },
+            },
+          ],
+        },
       ],
-      suggested_memes: ["Two Buttons", "Drake Hotline Bling"]
+
+      config: {
+        responseMimeType: "application/json",
+        temperature: 1.0,
+      },
+    });
+
+    const responseText = response.text.trim();
+
+    console.log("AI response received.");
+
+    let parsedMemeData;
+
+    try {
+      parsedMemeData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("JSON parsing failed.");
+      console.error("Raw AI response:", responseText);
+
+      return res.status(500).json({
+        error: "AI returned an invalid response.",
+      });
+    }
+
+    // Validate captions
+    if (
+      !parsedMemeData.captions ||
+      !Array.isArray(parsedMemeData.captions) ||
+      parsedMemeData.captions.length < 5
+    ) {
+      return res.status(500).json({
+        error: "AI did not return enough captions.",
+      });
+    }
+
+    // Return only the first 5 captions
+    parsedMemeData.captions = parsedMemeData.captions.slice(0, 5);
+
+    // Make sure suggested memes exists
+    if (!Array.isArray(parsedMemeData.suggested_memes)) {
+      parsedMemeData.suggested_memes = [];
+    }
+
+    console.log("Generated captions successfully.");
+
+    res.json(parsedMemeData);
+  } catch (error) {
+    console.error("API Gateway Execution Error:");
+    console.error(error);
+
+    // IMPORTANT:
+    // Do not return fixed captions here.
+    // Fixed fallback captions caused the same captions
+    // to appear for different images.
+
+    res.status(500).json({
+      error: "Failed to generate captions.",
+      message:
+        process.env.NODE_ENV === "production"
+          ? "AI caption generation failed."
+          : error.message,
     });
   }
 });
 
-// Use dynamic environment assignment parameters suited for hosting platforms
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`[GEFORCE Engine] Server active on network port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(
+    `[GEFORCE Engine] Server active on port ${PORT}`
+  );
+});
