@@ -7,7 +7,7 @@ const tones = [
     emoji: "😏",
   },
   {
-    name: "Gen-Z",
+    name: "Gen-Z Humor",
     icon: Skull,
     emoji: "💀",
   },
@@ -28,7 +28,7 @@ const tones = [
   },
 ];
 
-function ToneSelector({ selectedTone, setSelectedTone }) {
+function ToneSelector({ tone, setTone }) {
   return (
     <div className="w-full">
       <h2 className="mb-3 text-lg font-semibold">
@@ -36,30 +36,27 @@ function ToneSelector({ selectedTone, setSelectedTone }) {
       </h2>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {tones.map((tone) => {
-          const Icon = tone.icon;
-          const isSelected = selectedTone === tone.name;
+        {tones.map((item) => {
+          const Icon = item.icon;
+          const isSelected = tone === item.name;
 
           return (
             <button
-              key={tone.name}
+              key={item.name}
               type="button"
-              onClick={() => setSelectedTone(tone.name)}
+              onClick={() => setTone(item.name)}
               className={`rounded-xl border p-3 text-sm transition ${
                 isSelected
                   ? "border-red-500 bg-red-500/15 text-white"
                   : "border-white/10 bg-white/5 text-gray-400 hover:border-white/30 hover:text-white"
               }`}
             >
-              <Icon
-                size={20}
-                className="mx-auto mb-2"
-              />
+              <Icon size={20} className="mx-auto mb-2" />
 
-              <div>{tone.emoji}</div>
+              <div className="text-lg">{item.emoji}</div>
 
               <div className="mt-1 font-medium">
-                {tone.name}
+                {item.name}
               </div>
             </button>
           );
