@@ -1,3 +1,12 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+node_modules/
+.env
+.env.*
+*.log
+=======
+>>>>>>> backend
 # Logs
 logs
 *.log
@@ -22,3 +31,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
+.vercel
+=======
+>>>>>>> d8d8c9438d77dfc9d826ec52db0fb27301744d24
+>>>>>>> backend
