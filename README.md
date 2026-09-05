@@ -1,6 +1,6 @@
-# 🎭 AI Meme Generator
+# 🎭 AI Meme & Social Media Caption Generator
 
-> **Turn any image into viral, high-engagement memes in seconds using multimodal AI analysis and context-aware caption generation.**
+> **An AI-powered automation engine for content creators and social media managers. Upload an image or describe a situation to instantly generate multi-tone meme text, social media copy, and batch caption options mapped to trending templates.**
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -8,15 +8,15 @@
 
 ---
 
-## 🌟 Executive Summary
+## 📌 Problem Statement
 
-The **AI Meme Generator** bridges the gap between vision AI and meme culture. Standard image tools only add plain text to images, but our app analyzes spatial content, emotional cues, and visual contexts to suggest tailor-made captions paired with popular, high-converting meme templates.
-
-### **The Problem**
-Content creators and community managers spend hours brainstorming witty captions and searching for matching meme formats for social media campaigns.
+Social media managers and casual creators spend hours brainstorming witty copy and matching visual content to viral formats. Existing tools either only add static text or lack multimodal context awareness, resulting in generic captions and high operational latency.
 
 ### **Our Solution**
-An end-to-end web app that ingests image uploads, lets users pick a specific visual tone, generates context-aware captions via vision LLMs, and maps the input directly onto curated meme canvas overlays—all in under 3 seconds.
+Our web application combines multimodal vision AI and flexible prompt profiles to generate multi-format social content in seconds. Users can input content via **image upload** or **text-based situation descriptions** to output:
+* **Meme Text Overlays** mapped directly to popular visual templates.
+* **Social Media Post Copy** formatted with line breaks, call-to-actions, and hashtags.
+* **Batch Caption Options** generated simultaneously across multiple stylistic tones.
 
 ---
 
@@ -24,27 +24,36 @@ An end-to-end web app that ingests image uploads, lets users pick a specific vis
 
 * **Frontend Application:** [https://ai-meme-generator.vercel.app](https://ai-meme-generator.vercel.app)
 * **Backend API Gateway:** [https://ai-meme-server.onrender.com](https://ai-meme-server.onrender.com)
-* **Source Code:** [https://github.com/NityaVasireddy/first-hackathon](https://github.com/NityaVasireddy/first-hackathon)
+* **Source Code:** [https://github.com/NityaVasireddy/GEFORCE](https://github.com/NityaVasireddy/GEFORCE)
 
 ---
 
-## ✨ Key Features
+## ✨ Key Features & Target Alignment
 
-* 🧠 **Multimodal Vision Analysis:** Leverages Vision LLMs to detect objects, facial expressions, and implicit scenes within uploaded photos.
-* 🎭 **Dynamic Vibe Matrix:** Custom prompt engineering profiles for 5 unique tones (*Sarcastic*, *Gen-Z / Brainrot*, *Wholesome*, *Corporate*, *Absurdist*).
-* 📐 **Template Matching Engine:** Automatically ranks and suggests classic template layouts (e.g., *Distracted Boyfriend*, *Drake Hotline*) based on image context.
-* ⚡ **Client-Side Canvas Rendering:** Instant, pixel-perfect meme generation rendered entirely in the user's browser using HTML5 Canvas—zero server-side image processing bloat.
-* 🛡️ **Enterprise Safety & Fallbacks:** Automated content filtering and structured JSON fallbacks to ensure reliable API responses under heavy load.
+* 📸 **Dual Input Engine:** Accepts direct image uploads (PNG/JPG vision analysis) *or* text-based situation descriptions.
+* ⚡ **Batch-Generation Mode:** Produces 5+ unique caption variants in a single AI request to maximize creator options.
+* 🎭 **Multi-Tone Vibe Matrix:** Formats copy across diverse styles (*Sarcastic*, *Gen-Z / Brainrot*, *Wholesome*, *Corporate*, *Absurdist*).
+* 📐 **Trending Format Engine:** Recommends and overlays text onto a curated library of viral meme templates (*Distracted Boyfriend*, *Drake Hotline*, etc.).
+* 📝 **Social Media Copy Suite:** Generates ready-to-publish post captions complete with platform-optimized layout and relevant hashtag suggestions.
+* 🎨 **Client-Side Canvas Rendering:** Instant, pixel-perfect meme creation inside the browser using HTML5 Canvas for zero server latency.
 
 ---
 
 ## 🏗️ System Architecture
 
 ```text
-[ User Interface ] ──( Image & Tone )──> [ Express API Gateway ]
-        │                                           │
-  HTML5 Canvas Rendering                    OpenAI Vision / Claude
-  & Local Export (.png)                            │
-        ▲                                           ▼
-        └─────────────( Structured JSON )───────────┘
-                    Captions + Template IDs
+  [ Dual Input: Image / Text Situation ]
+                    │
+                    ▼
+          [ Express API Gateway ]
+                    │
+           ( Multimodal LLM )
+                    │
+                    ▼
+     [ Structured JSON Output Engine ]
+   ├── Meme Text & Template Mapping
+   ├── Social Media Post Copy
+   └── Batch Caption Matrix (5+ Tones)
+                    │
+                    ▼
+   [ React Frontend + HTML5 Canvas ]
