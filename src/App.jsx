@@ -1,583 +1,141 @@
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-
-import { auth } from "./firebase";
-
-import Header from "./components/Header";
-import ImageUpload from "./components/ImageUpload";
-import DescriptionInput from "./components/DescriptionInput";
-import ToneSelector from "./components/ToneSelector";
-import GenerateButton from "./components/GenerateButton";
-import ResultsGrid from "./components/ResultsGrid";
-import HashtagSuggestions from "./components/HashtagSuggestions";
-import MemeSuggestions from "./components/MemeSuggestions";
-import MemePreview from "./components/MemePreview";
-import HistoryFavorites from "./components/HistoryFavorites";
-
-/* =========================
-   Convert File to Base64
-========================= */
-
-const getBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.readAsDataURL(file);
-
-    reader.onload = () => resolve(reader.result);
-
-    reader.onerror = (error) => reject(error);
-  });
-};
+import React, { useState } from 'react';
 
 function App() {
-  /* =========================
-     Authentication
-  ========================= */
-
-  const [user, setUser] = useState(null);
-
-  /* =========================
-     Theme
-  ========================= */
-
-  const [darkMode, setDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem("theme");
-
-    if (savedTheme) {
-      return savedTheme === "dark";
-    }
-
-    return true;
-  });
-
-  /* =========================
-     Main States
-  ========================= */
-
-  const [image, setImage] = useState(null);
-
-  const [description, setDescription] = useState("");
-
-  const [tone, setTone] = useState("Funny");
-
-  const [platform, setPlatform] = useState("Instagram");
-
-  /* =========================
-     Caption States
-  ========================= */
-
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [platform, setPlatform] = useState('Instagram');
+  const [tone, setTone] = useState('Humorous');
   const [captions, setCaptions] = useState([]);
-
-  const [selectedCaption, setSelectedCaption] = useState("");
-
-  const [aiSuggestions, setAiSuggestions] = useState([]);
-
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  /* =========================
-     Firebase Auth Listener
-  ========================= */
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (currentUser) => {
-        setUser(currentUser);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  /* =========================
-     Theme Effect
-  ========================= */
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.remove("light");
-
-      document.documentElement.classList.add("dark");
-
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-
-      document.documentElement.classList.add("light");
-
-      localStorage.setItem("theme", "light");
-    }
-  }, [darkMode]);
-
-  /* =========================
-     Logout
-  ========================= */
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setPreview(URL.createObjectURL(selectedFile));
     }
   };
 
-  /* =========================
-     Generate Captions
-  ========================= */
-
-  const handleGenerate = async () => {
-    if (!description.trim() && !image) {
-      alert(
-        "Please upload an image or enter a description."
-      );
-
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Please upload an image first.');
       return;
     }
 
     setLoading(true);
+    setError('');
+    setCaptions([]);
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('platform', platform);
+    formData.append('tone', tone);
 
     try {
-      /* =========================
-         1. Extract Exact Base64 Image
-      ========================= */
-
-      let imageBase64 = null;
-
-      if (image?.base64) {
-        imageBase64 = image.base64;
-      } else if (image?.preview) {
-        imageBase64 = image.preview;
-      } else if (typeof image === "string") {
-        imageBase64 = image;
-      } else if (image instanceof File) {
-        imageBase64 = await getBase64(image);
-      } else if (image?.file instanceof File) {
-        imageBase64 = await getBase64(image.file);
-      }
-
-      console.log(
-        "Image Base64 available:",
-        !!imageBase64
-      );
-
-      /* =========================
-         2. Backend API Request
-      ========================= */
-
-      const response = await fetch(
-        "http://localhost:5000/api/generate",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            description,
-            tone,
-            platform,
-            imageBase64,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Server error: ${response.status}`
-        );
-      }
+      const response = await fetch('https://geforce-backend.onrender.com/generate-caption', {
+        method: 'POST',
+        body: formData,
+      });
 
       const data = await response.json();
 
-      console.log("Backend response:", data);
-
-      /* =========================
-         3. Captions
-      ========================= */
-
-      if (
-        data.success &&
-        Array.isArray(data.captions)
-      ) {
-        const formattedCaptions =
-          data.captions.map((item, index) => {
-            if (typeof item === "string") {
-              return {
-                id: Date.now() + index,
-                caption: item,
-              };
-            }
-
-            return {
-              id:
-                item.id ||
-                Date.now() + index,
-
-              caption:
-                item.caption ||
-                item.text ||
-                "",
-            };
-          });
-
-        setCaptions(formattedCaptions);
-
-        if (formattedCaptions.length > 0) {
-          setSelectedCaption(
-            formattedCaptions[0].caption
-          );
-        }
-      } else {
-        setCaptions([]);
-        setSelectedCaption("");
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate captions.');
       }
 
-      /* =========================
-         4. Hashtags
-      ========================= */
-
-      if (Array.isArray(data.hashtags)) {
-        setAiSuggestions(data.hashtags);
-      } else {
-        setAiSuggestions([]);
-      }
-
-      /* =========================
-         5. Save History
-      ========================= */
-
-      const firstCaption =
-        data.captions?.[0];
-
-      const historyCaption =
-        typeof firstCaption === "string"
-          ? firstCaption
-          : firstCaption?.caption ||
-            firstCaption?.text ||
-            "";
-
-      const historyItem = {
-        id: Date.now(),
-
-        description,
-
-        tone,
-
-        platform,
-
-        caption: historyCaption,
-
-        date: new Date().toLocaleString(),
-      };
-
-      const oldHistory =
-        JSON.parse(
-          localStorage.getItem(
-            "captionHistory"
-          )
-        ) || [];
-
-      localStorage.setItem(
-        "captionHistory",
-        JSON.stringify([
-          historyItem,
-          ...oldHistory,
-        ])
-      );
-    } catch (error) {
-      console.error(
-        "Generation error:",
-        error
-      );
-
-      alert(
-        "Unable to connect to the backend. Please make sure your backend server is running on port 5000."
-      );
+      setCaptions(data.captions || []);
+    } catch (err) {
+      setError(err.message || 'Error connecting to the backend server.');
     } finally {
       setLoading(false);
     }
   };
 
-  /* =========================
-     Select Caption
-  ========================= */
-
-  const handleSelectCaption = (item) => {
-    const text =
-      typeof item === "string"
-        ? item
-        : item?.caption || "";
-
-    setSelectedCaption(text);
-  };
-
-  /* =========================
-     UI
-  ========================= */
-
   return (
-    <div
-      className={`min-h-screen transition-colors duration-300 ${
-        darkMode
-          ? "bg-[#080808] text-white"
-          : "bg-[#f5f5f5] text-black"
-      }`}
-    >
-      {/* Header */}
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+      <header className="mb-8 text-center">
+        <h1 className="text-4xl font-extrabold text-indigo-400 mb-2">AI Caption & Meme Generator</h1>
+        <p className="text-slate-400">Upload an image and choose a style to generate engagement-boosting captions!</p>
+      </header>
 
-      <Header
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-        onLogout={handleLogout}
-      />
-
-      <main className="mx-auto max-w-7xl px-5 py-8">
-
-        {/* =========================
-            Page Heading
-        ========================= */}
-
-        <div className="mb-8">
-
-          <h1
-            className={`text-3xl font-bold ${
-              darkMode
-                ? "text-white"
-                : "text-black"
-            }`}
-          >
-            AI Meme & Caption Generator
-          </h1>
-
-          <p
-            className={`mt-2 ${
-              darkMode
-                ? "text-gray-400"
-                : "text-gray-600"
-            }`}
-          >
-            Create funny, creative and engaging
-            captions for your social media posts.
-          </p>
-
-          {user && (
-            <p
-              className={`mt-2 text-sm ${
-                darkMode
-                  ? "text-gray-500"
-                  : "text-gray-500"
-              }`}
-            >
-              Welcome,{" "}
-              {user.displayName ||
-                user.email}
-            </p>
-          )}
-        </div>
-
-        {/* =========================
-            Input Section
-        ========================= */}
-
-        <section
-          className={`rounded-3xl border p-6 transition-colors ${
-            darkMode
-              ? "border-white/10 bg-white/[0.03]"
-              : "border-black/10 bg-white shadow-sm"
-          }`}
-        >
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-            {/* Image */}
-
-            <div>
-              <ImageUpload
-                image={image}
-                setImage={setImage}
-              />
-            </div>
-
-            {/* Description */}
-
-            <div>
-              <DescriptionInput
-                description={description}
-                setDescription={
-                  setDescription
-                }
-              />
-            </div>
-
+      <main className="w-full max-w-xl bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
+        <form onSubmit={handleGenerate} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2 text-slate-300">Upload Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+            />
           </div>
 
-          {/* Tone + Platform */}
+          {preview && (
+            <div className="mt-4 flex justify-center">
+              <img src={preview} alt="Upload preview" className="max-h-60 rounded-lg border border-slate-600 object-cover" />
+            </div>
+          )}
 
-          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-
-            {/* Tone */}
-
-            <ToneSelector
-              tone={tone}
-              setTone={setTone}
-            />
-
-            {/* Platform */}
-
+          <div className="grid grid-cols-2 gap-4">
             <div>
-
-              <label
-                className={`mb-2 block text-sm font-medium ${
-                  darkMode
-                    ? "text-gray-300"
-                    : "text-gray-700"
-                }`}
-              >
-                Platform
-              </label>
-
+              <label className="block text-sm font-medium mb-2 text-slate-300">Platform</label>
               <select
                 value={platform}
-                onChange={(e) =>
-                  setPlatform(
-                    e.target.value
-                  )
-                }
-                className={`w-full rounded-xl border px-4 py-3 outline-none transition ${
-                  darkMode
-                    ? "border-white/10 bg-black text-white"
-                    : "border-black/10 bg-white text-black"
-                }`}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
               >
-
-                <option value="Instagram">
-                  Instagram
-                </option>
-
-                <option value="Facebook">
-                  Facebook
-                </option>
-
-                <option value="Twitter">
-                  Twitter / X
-                </option>
-
-                <option value="LinkedIn">
-                  LinkedIn
-                </option>
-
-                <option value="WhatsApp">
-                  WhatsApp
-                </option>
-
+                <option value="Instagram">Instagram</option>
+                <option value="Twitter/X">Twitter/X</option>
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="Reddit">Reddit</option>
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2 text-slate-300">Tone</label>
+              <select
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="Humorous">Humorous</option>
+                <option value="Professional">Professional</option>
+                <option value="Sarcastic">Sarcastic</option>
+                <option value="Inspirational">Inspirational</option>
+              </select>
+            </div>
           </div>
 
-          {/* Generate */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 font-bold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
+          >
+            {loading ? 'Generating Captions...' : 'Generate Captions'}
+          </button>
+        </form>
 
-          <div className="mt-6">
-
-            <GenerateButton
-              onClick={handleGenerate}
-              loading={loading}
-            />
-
+        {error && (
+          <div className="mt-6 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm">
+            {error}
           </div>
-
-        </section>
-
-        {/* =========================
-            Caption Results
-        ========================= */}
-
-        {captions.length > 0 && (
-          <section className="mt-8">
-
-            <ResultsGrid
-              captions={captions}
-              onSelectCaption={
-                handleSelectCaption
-              }
-            />
-
-          </section>
         )}
 
-        {/* =========================
-            Hashtags
-        ========================= */}
-
         {captions.length > 0 && (
-          <section className="mt-8">
-
-            <HashtagSuggestions
-              description={description}
-              tone={tone}
-              platform={platform}
-              hashtags={aiSuggestions}
-            />
-
-          </section>
+          <div className="mt-8 space-y-4">
+            <h2 className="text-xl font-bold text-indigo-300">Generated Captions</h2>
+            <ul className="space-y-3">
+              {captions.map((caption, index) => (
+                <li key={index} className="p-4 bg-slate-700/60 rounded-lg border border-slate-600 text-slate-200 text-sm">
+                  {caption}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
-
-        {/* =========================
-            Meme Suggestions
-        ========================= */}
-
-        {captions.length > 0 && (
-          <section className="mt-8">
-
-            <MemeSuggestions
-              description={description}
-              tone={tone}
-            />
-
-          </section>
-        )}
-
-        {/* =========================
-            Meme Preview
-        ========================= */}
-
-        <section className="mt-8">
-
-          <MemePreview
-            image={image}
-            caption={selectedCaption}
-          />
-
-        </section>
-
-        {/* =========================
-            History & Favorites
-        ========================= */}
-
-        <section className="mt-8">
-
-          <HistoryFavorites />
-
-        </section>
-
       </main>
-
-      {/* =========================
-          Footer
-      ========================= */}
-
-      <footer
-        className={`border-t px-5 py-6 text-center text-sm ${
-          darkMode
-            ? "border-white/10 text-gray-600"
-            : "border-black/10 text-gray-500"
-        }`}
-      >
-        AI Meme & Caption Generator © 2026
-      </footer>
-
     </div>
   );
 }
