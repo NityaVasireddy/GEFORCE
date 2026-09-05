@@ -1,42 +1,51 @@
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
 
 const app = express();
+const PORT = 5000;
 
-// Middleware
 app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '50mb' }));
 
-// Test route
-app.get("/", (req, res) => {
-    res.json({
-        message: "Backend server is running!"
-    });
+// 1. ROOT TEST ROUTE (Browser lo direct ga check cheyadaniki)
+app.get('/', (req, res) => {
+  res.send('<h1>🎉 Meme AI Server 100% Running!</h1>');
 });
 
-// Generate captions API
-app.post("/api/generate-captions", (req, res) => {
-    const { imageBase64, description, tone } = req.body;
-
-    console.log("Received request:");
-    console.log("Description:", description);
-    console.log("Tone:", tone);
-    console.log("Image received:", !!imageBase64);
-
-    res.json({
-        message: "Caption endpoint is working!",
-        received: {
-            description: description,
-            tone: tone,
-            imageReceived: !!imageBase64
-        }
-    });
+// 2. HEALTH CHECK ROUTE (Idhi unte Cannot GET radhu!)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Meme AI Backend Active' });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
+// 3. CAPTIONS GENERATION ROUTE (Member 1 & 2 use chesedhi)
+app.post('/api/generate-captions', (req, res) => {
+  const { tone = "Sarcastic", context = "" } = req.body;
+  
+  res.json({
+    captions: [
+      {
+        tone: tone,
+        topText: "WHEN MY CODE FINALLY COMPILES",
+        bottomText: "BUT I HAVE NO IDEA WHY",
+        caption: "When the code finally works on the first try 🚀"
+      },
+      {
+        tone: tone,
+        topText: "HACKATHON CLOCK TICKING",
+        bottomText: "TEAM RUSHING TO FINISH THE DEMO",
+        caption: "Hackathon adrenaline mode activated!"
+      },
+      {
+        tone: tone,
+        topText: "DEPLOYING AT MIDNIGHT",
+        bottomText: "PRAYING TO THE SERVER GODS",
+        caption: "Deploying directly to production. Please don't crash!"
+      }
+    ],
+    aiSuggestions: ["this_is_fine", "panik_kalm", "drake"]
+  });
+});
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
