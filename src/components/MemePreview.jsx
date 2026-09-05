@@ -54,7 +54,7 @@ function MemePreview({ image, caption }) {
   const previewCaption =
     caption || "POV: You thought today was going to be productive 💀";
 
-  // No image uploaded
+  // No image
   if (!imageUrl) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
@@ -90,6 +90,7 @@ function MemePreview({ image, caption }) {
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+
       {/* Header */}
       <div className="mb-5">
         <h2 className="text-lg font-semibold text-white">
@@ -101,7 +102,7 @@ function MemePreview({ image, caption }) {
         </p>
       </div>
 
-      {/* 3 Preview Images */}
+      {/* Three Preview Styles */}
       <div className="grid gap-4 md:grid-cols-3">
 
         {/* ================= STYLE 1 ================= */}
@@ -110,13 +111,13 @@ function MemePreview({ image, caption }) {
 
             <img
               src={imageUrl}
-              alt="Meme preview black background"
+              alt="Meme preview white background"
               className="h-72 w-full object-contain"
             />
 
-            {/* Black caption background */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black px-4 py-3 text-center">
-              <p className="text-sm font-bold leading-relaxed text-white">
+            {/* White Background */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white px-4 py-3 text-center">
+              <p className="text-xs font-bold leading-relaxed text-black">
                 {previewCaption}
               </p>
             </div>
@@ -125,7 +126,7 @@ function MemePreview({ image, caption }) {
 
           <div className="border-t border-white/10 px-3 py-3">
             <p className="text-center text-xs font-medium text-gray-400">
-              Style 1 • Black Background
+              Style 1 • White Background
             </p>
           </div>
         </div>
@@ -141,10 +142,10 @@ function MemePreview({ image, caption }) {
               className="h-72 w-full object-contain"
             />
 
-            {/* No caption background */}
+            {/* No Background */}
             <div className="absolute bottom-0 left-0 right-0 px-4 py-4 text-center">
               <p
-                className="text-sm font-extrabold leading-relaxed text-white"
+                className="text-xs font-extrabold leading-relaxed text-white"
                 style={{
                   textShadow:
                     "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000",
@@ -170,13 +171,13 @@ function MemePreview({ image, caption }) {
 
             <img
               src={imageUrl}
-              alt="Meme preview transparent background"
+              alt="Meme preview transparent black background"
               className="h-72 w-full object-contain"
             />
 
-            {/* Semi-transparent caption background */}
+            {/* Semi-transparent Black Background */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-3 text-center">
-              <p className="text-sm font-bold leading-relaxed text-white">
+              <p className="text-xs font-bold leading-relaxed text-white">
                 {previewCaption}
               </p>
             </div>
@@ -185,7 +186,7 @@ function MemePreview({ image, caption }) {
 
           <div className="border-t border-white/10 px-3 py-3">
             <p className="text-center text-xs font-medium text-gray-400">
-              Style 3 • Transparent Background
+              Style 3 • Transparent Black
             </p>
           </div>
         </div>
