@@ -1,0 +1,7 @@
+[
+  { "id": "drake", "name": "Drake Hotline Bling", "description": "Drake looking away in disgust, then smiling approvingly at the second option.", "use_case": "Comparing something bad vs something good." },
+  { "id": "boyfriend", "name": "Distracted Boyfriend", "description": "A man looking at another woman while his girlfriend looks angry.", "use_case": "Choosing a new tempting option over your current commitment." },
+  { "id": "buttons", "name": "Two Buttons", "description": "A man sweating while trying to choose between two conflicting buttons.", "use_case": "Hard decisions where both options lead to anxiety." },
+  { "id": "mind", "name": "Change My Mind", "description": "A man sitting at a desk with a sign challenging others to debate his opinion.", "use_case": "Stating a strong opinion confidently." },
+  { "id": "brain", "name": "Expanding Brain", "description": "A series of brains getting progressively more glowing and complex.", "use_case": "Comparing simple ideas to absurdly 'genius' ideas." }
+]
