@@ -4,15 +4,19 @@
   box-sizing: border-box;
 }
 
+<<<<<<< HEAD
 html {
   background: #080808;
 }
 
+=======
+>>>>>>> backend
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
   background: #080808;
   color: white;
+<<<<<<< HEAD
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -20,4 +24,6 @@ html.light,
 html.light body {
   background: #f5f5f5;
   color: #111111;
+=======
+>>>>>>> backend
 }
